@@ -1,18 +1,17 @@
-from bot import CMD
+from bot import CMD, LOGGER
 from pyrogram import Client, filters
 
-from bot.logger import LOGGER
 from bot.helpers.translations import lang
-from bot.helpers.utils.common import clean_up
+from bot.helpers.utils.clean import clean_up
+from bot.helpers.utils.check_link import check_link
 from bot.helpers.database.postgres_impl import user_settings
-from bot.helpers.utils.providers import checkLogins, check_link
-from bot.helpers.utils.tg_utils import check_id, send_message, fetch_user_details
+from bot.helpers.utils.auth_check import check_id, checkLogins
 
 from bot.helpers.qobuz.handler import qobuz
 from bot.helpers.deezer.handler import deezerdl
 from bot.helpers.kkbox.kkbox_helper import kkbox
-from bot.helpers.spotify.handler import spotify_dl
 from bot.helpers.tidal_func.events import startTidal
+from bot.helpers.spotify.handler import spotify_dl
 
 @Client.on_message(filters.command(CMD.DOWNLOAD))
 async def download_track(bot, update):
@@ -20,56 +19,72 @@ async def download_track(bot, update):
         try:
             if update.reply_to_message:
                 link = update.reply_to_message.text
-                reply = True
+                reply_to_id = update.reply_to_message.id
             else:
                 link = update.text.split(" ", maxsplit=1)[1]
-                reply = False
+                reply_to_id = update.id
         except:
             return await bot.send_message(
                 chat_id=update.chat.id,
-                text=lang.ERR_NO_LINK,
+                text=lang.select.ERR_NO_LINK,
                 reply_to_message_id=update.id
             )
             
         if link:
             provider = await check_link(link)
-            user = await fetch_user_details(update, reply, provider)
-            user['link'] = link
             if provider:
                 err, err_msg = await checkLogins(provider)
                 if err:
-                    return await send_message(user, err_msg)
+                    return await bot.send_message(
+                        chat_id=update.chat.id,
+                        text=err_msg,
+                        reply_to_message_id=update.id
+                    )
             else:
-                return await send_message(user, lang.ERR_LINK_RECOGNITION)
+                return await bot.send_message(
+                    chat_id=update.chat.id,
+                    text=lang.select.ERR_LINK_RECOGNITION,
+                    reply_to_message_id=update.id
+                )
             
-            await LOGGER.info(f"Download Initiated By - {user['name']} - {provider.upper()}")
-
-            msg = await send_message(user, lang.START_DOWNLOAD)
-            user['bot_msg'] = msg.id
+            LOGGER.info(f"Download Initiated By - {update.from_user.first_name}")
+            msg = await bot.send_message(
+                chat_id=update.chat.id,
+                text=lang.select.START_DOWNLOAD,
+                reply_to_message_id=update.id
+            )
+            botmsg_id = msg.id
+            if update.from_user.username:
+                u_name = f"@{update.from_user.username}"
+            else:
+                u_name = f'<a href="tg://user?id={update.from_user.id}">{update.from_user.first_name}</a>'
 
             user_settings.set_var(update.chat.id, "ON_TASK", True)
             try:
                 if provider == "tidal":
-                    await startTidal(link, user)
+                    await startTidal(link, bot, update.chat.id, reply_to_id, update.from_user.id, u_name)
                 elif provider == "kkbox":
-                    # TODO Fix KKBOX Metadata
-                    await kkbox.start(link, user)
+                    await kkbox.start(link, bot, update, reply_to_id, u_name)
                 elif provider == 'qobuz':
-                    await qobuz.start(link, user)
+                    await qobuz.start(link, bot, update, reply_to_id, u_name)
                 elif provider == 'deezer':
-                    await deezerdl.start(link, user)
+                    await deezerdl.start(link, bot, update, reply_to_id, u_name)
                 elif provider == 'spotify':
-                    await spotify_dl.start(link, user)
-                await bot.delete_messages(update.chat.id, user['bot_msg'])
-                await send_message(user, lang.TASK_COMPLETED)
+                    await spotify_dl.start(link, bot, update, reply_to_id, u_name)
+                await bot.delete_messages(update.chat.id, msg.id)
+                await bot.send_message(
+                    chat_id=update.chat.id,
+                    text=lang.select.TASK_COMPLETED,
+                    reply_to_message_id=update.id
+                )
             except Exception as e:
-                await LOGGER.error(e, user)
-                """await bot.send_message(
+                LOGGER.warning(e)
+                await bot.send_message(
                     chat_id=update.chat.id,
                     text=e,
                     reply_to_message_id=update.id
-                )"""
+                )
             user_settings.set_var(update.chat.id, "ON_TASK", False)
 
-            await clean_up(user['r_id'], provider)
+            await clean_up(reply_to_id, provider)
             
