@@ -100,8 +100,8 @@ class Config(object):
 # AUDIO SAVING OPTIONS (Dumping)
 
 #--------------------
-    COPY_AUDIO_FILES = getenv('COPY_AUDIO_FILES', False)
-    DUPLICATE_CHECK = getenv('DUPLICATE_CHECK', False)
+    COPY_AUDIO_FILES = getenv('COPY_AUDIO_FILES', True)
+    DUPLICATE_CHECK = getenv('DUPLICATE_CHECK', True)
     SPOTIFY_CHAT = getenv('SPOTIFY_CHAT', None)
     QOBUZ_CHAT = getenv('QOBUZ_CHAT', None)
     TIDAL_CHAT = getenv('TIDAL_CHAT', None)
