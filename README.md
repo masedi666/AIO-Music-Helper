@@ -10,7 +10,7 @@ An all-in-one bot to handle all your musomaniac needs
 
 Clone the github repo
 ```
-git clone https://github.com/vinayak-7-0-3/AIO-Music-Helper
+git clone https://github.com/masedi666/AIO-Music-Helper
 ```  
 Get into the directory AIO-Music-Helper
 ```
