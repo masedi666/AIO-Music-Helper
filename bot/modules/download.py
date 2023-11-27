@@ -1,6 +1,7 @@
 from bot import CMD, LOGGER
 from pyrogram import Client, filters
 
+from bot.logger import LOGGER
 from bot.helpers.translations import lang
 from bot.helpers.utils.clean import clean_up
 from bot.helpers.utils.check_link import check_link
